@@ -1,0 +1,609 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Costa Rica Trip Planner</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: sticky trip header + tab bar over a single column. Timeline = date rail (left) + event list per day; other tabs = sortable lists. Gantt strip of destinations sits above the day-by-day list. */
+:root{
+  --bg:#f1f4ec; --surface:#fafcf6; --surface-2:#e8ede0; --fg:#16231d; --muted:#586a60; --line:#d6ddcc;
+  --accent:#0b6b57; --accent-ink:#ffffff; --warn:#a8470f; --warn-bg:#f8e6d6; --ok:#1d7a4a;
+  --k-dest:#1b7a5a; --k-act:#b5510b; --k-trans:#2b59b0; --k-stay:#7447ab;
+  --k-dest-bg:#dcefe5; --k-act-bg:#f7e4d2; --k-trans-bg:#dce6f7; --k-stay-bg:#eadff6;
+  --font-display:'Bricolage Grotesque','Avenir Next','Segoe UI',system-ui,sans-serif;
+  --font-body:'Instrument Sans','Segoe UI',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1914; --surface:#15251d; --surface-2:#1c3026; --fg:#e5eee7; --muted:#92a69a; --line:#26402f;
+  --accent:#4fcaa1; --accent-ink:#06231a; --warn:#f0a070; --warn-bg:#3a2417; --ok:#6fd49b;
+  --k-dest:#59d0a8; --k-act:#f2975a; --k-trans:#86adf2; --k-stay:#bc9cf2;
+  --k-dest-bg:#173a2d; --k-act-bg:#3b2616; --k-trans-bg:#1a2c4d; --k-stay-bg:#2c1f45; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1914; --surface:#15251d; --surface-2:#1c3026; --fg:#e5eee7; --muted:#92a69a; --line:#26402f;
+  --accent:#4fcaa1; --accent-ink:#06231a; --warn:#f0a070; --warn-bg:#3a2417; --ok:#6fd49b;
+  --k-dest:#59d0a8; --k-act:#f2975a; --k-trans:#86adf2; --k-stay:#bc9cf2;
+  --k-dest-bg:#173a2d; --k-act-bg:#3b2616; --k-trans-bg:#1a2c4d; --k-stay-bg:#2c1f45; color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
+.wrap{max-width:980px;margin:0 auto}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+
+/* header */
+.top{padding:22px 0 14px;display:grid;gap:12px}
+.trip-name{font-family:var(--font-display);font-weight:700;font-size:clamp(26px,5vw,40px);letter-spacing:-.02em;line-height:1.1;
+  background:transparent;border:0;border-bottom:1px dashed transparent;padding:2px 0;width:100%}
+.trip-name:hover,.trip-name:focus{border-bottom-color:var(--line)}
+.trip-meta{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:end}
+.trip-meta label{display:grid;gap:3px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.trip-meta input{font-size:14px;letter-spacing:0;text-transform:none;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;color:var(--fg)}
+.trip-meta input[type=text]{width:64px}
+.stats{display:flex;flex-wrap:wrap;gap:6px 18px;color:var(--muted);font-size:13px;margin:0}
+.stats b{color:var(--fg);font-weight:600}
+.savestate{font-size:12px;color:var(--muted)}
+.savestate.bad{color:var(--warn)}
+
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);
+  display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:8px 0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
+.tabs{display:flex;gap:2px;overflow-x:auto;min-width:0;max-width:100%}
+.tab{background:none;border:0;padding:8px 12px;border-radius:6px;color:var(--muted);font-weight:500;white-space:nowrap;display:flex;gap:6px;align-items:center}
+.tab:hover{background:var(--surface-2)}
+.tab[aria-selected=true]{color:var(--fg);background:var(--surface-2);box-shadow:inset 0 -2px 0 var(--accent)}
+.tab .n{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.d-destinations{background:var(--k-dest)}.d-activities{background:var(--k-act)}.d-transport{background:var(--k-trans)}.d-stays{background:var(--k-stay)}
+
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:7px 12px;font-weight:500;font-size:14px}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--warn);border-color:var(--warn)}
+.btn.danger.armed{background:var(--warn);color:var(--bg)}
+.btn.ghost{border-color:transparent;background:none;color:var(--muted)}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+
+main{padding-top:20px;display:grid;gap:20px}
+.banner{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px 14px;display:flex;gap:10px 16px;flex-wrap:wrap;align-items:center;justify-content:space-between;font-size:14px}
+.banner p{margin:0;min-width:0}
+.sec-title{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;font-family:var(--font-body);margin-bottom:8px}
+
+.empty{border:1px dashed var(--line);border-radius:10px;padding:28px 20px;text-align:center;color:var(--muted);display:grid;gap:12px;justify-items:center}
+.empty h3{color:var(--fg);font-size:20px}
+.empty p{margin:0;max-width:46ch}
+
+/* gantt */
+.gantt-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.gantt{display:grid;grid-auto-rows:30px;padding:8px 10px;gap:4px 0;min-width:max-content;width:100%}
+.g-head{font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:center;border-left:1px solid var(--line);line-height:1.1;padding-top:2px}
+.g-head.we{background:var(--surface-2)}
+.g-head small{display:block;font-size:9px;opacity:.9;letter-spacing:.04em}
+.g-bar{border-radius:5px;padding:0 8px;display:flex;align-items:center;font-size:12.5px;font-weight:600;color:var(--accent-ink);background:var(--k-dest);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;border:0;text-align:left;margin:1px 1px}
+.g-bar:hover{filter:brightness(1.1)}
+:root[data-theme="dark"] .g-bar{color:#06231a}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .g-bar{color:#06231a}}
+
+/* timeline */
+.days{display:grid;gap:12px}
+.day{display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px}
+.rail{text-align:center;padding-top:10px}
+.rail .wd{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.rail .dn{font-family:var(--font-display);font-weight:700;font-size:32px;line-height:1;letter-spacing:-.03em}
+.rail .mo{font-family:var(--font-mono);font-size:11px;color:var(--muted);text-transform:uppercase}
+.day.we .rail .wd{color:var(--k-act)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0}
+.day-head{display:flex;gap:6px 12px;flex-wrap:wrap;align-items:baseline;padding:10px 14px;border-bottom:1px solid var(--line)}
+.day-head h3{font-size:17px}
+.day-head .dnum{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+.day-head .quiet{color:var(--muted);font-size:13px}
+.ev{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:10px;align-items:start;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:9px 14px}
+.day-head + .ev{border-top:0}
+.ev:hover{background:var(--surface-2)}
+.ev .t{font-family:var(--font-mono);font-size:12px;color:var(--muted);padding-top:2px}
+.ev .what{min-width:0}
+.ev .ttl{font-weight:600;overflow-wrap:anywhere}
+.ev .sub{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.ev .side{display:grid;gap:3px;justify-items:end;font-size:12px;color:var(--muted)}
+.chip{display:inline-block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;border-radius:4px;padding:1px 6px;margin-right:6px;vertical-align:1px}
+.c-activities{background:var(--k-act-bg);color:var(--k-act)}
+.c-transport{background:var(--k-trans-bg);color:var(--k-trans)}
+.c-stays{background:var(--k-stay-bg);color:var(--k-stay)}
+.c-destinations{background:var(--k-dest-bg);color:var(--k-dest)}
+.pill{font-size:11px;border-radius:99px;padding:1px 8px;border:1px solid var(--line);white-space:nowrap}
+.pill.yes{color:var(--ok);border-color:currentColor}
+.pill.no{color:var(--warn);border-color:currentColor}
+.night{display:flex;gap:8px;align-items:center;padding:8px 14px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.night.gap{color:var(--warn);background:var(--warn-bg);border-radius:0 0 9px 9px}
+.night button{margin-left:auto}
+.free{padding:10px 14px;color:var(--muted);font-size:13px}
+
+/* lists */
+.list{display:grid;gap:8px}
+.row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;text-align:left;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 14px}
+.row:hover{background:var(--surface-2)}
+.row .ttl{font-weight:600;overflow-wrap:anywhere}
+.row .sub{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.row .side{display:grid;gap:4px;justify-items:end;font-size:13px}
+.list-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.list-head h2{font-size:22px}
+
+/* modal */
+.overlay{position:fixed;inset:0;z-index:20;background:rgba(10,20,15,.55);display:grid;place-items:center;padding:16px;overflow-y:auto}
+.modal{background:var(--surface);border:1px solid var(--line);border-radius:12px;width:100%;max-width:520px;padding:20px;display:grid;gap:14px;max-height:100%;overflow-y:auto}
+.modal h2{font-size:22px;display:flex;gap:8px;align-items:center}
+.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.field{display:grid;gap:4px;min-width:0}
+.field.full{grid-column:1/-1}
+.field label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.field input,.field select,.field textarea{background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%;min-width:0}
+.field textarea{resize:vertical}
+.chk{display:flex;gap:8px;align-items:center;font-size:14px;padding-top:20px}
+.chk input{width:auto}
+.err{color:var(--warn);font-size:13px;min-height:1em;margin:0}
+.foot{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap}
+.foot .r{display:flex;gap:8px;margin-left:auto}
+.data textarea{width:100%;min-height:120px;font-family:var(--font-mono);font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px;color:var(--fg)}
+.hint{color:var(--muted);font-size:13px;margin:0}
+@media (max-width:560px){
+  .day{grid-template-columns:48px minmax(0,1fr);gap:8px}
+  .rail .dn{font-size:26px}
+  .form{grid-template-columns:1fr}
+  .ev{grid-template-columns:40px minmax(0,1fr)}
+  .ev .side{grid-column:2;justify-items:start;display:flex;gap:8px}
+  .row{grid-template-columns:auto minmax(0,1fr)}
+  .row .side{grid-column:2;justify-items:start;display:flex;gap:8px;align-items:center}
+}
+@media (prefers-reduced-motion:no-preference){.btn,.tab,.ev,.row{transition:background .12s}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <input id="tripName" class="trip-name" type="text" aria-label="Trip name" maxlength="80">
+    <div class="trip-meta">
+      <label for="tripStart">Start<input id="tripStart" type="date"></label>
+      <label for="tripEnd">End<input id="tripEnd" type="date"></label>
+      <label for="tripCur">Currency<input id="tripCur" type="text" maxlength="4"></label>
+      <span class="savestate" id="saveState" role="status"></span>
+    </div>
+    <p class="stats" id="stats"></p>
+  </header>
+
+  <div class="bar">
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="actions"><button class="btn" id="dataBtn" type="button">Data</button></div>
+  </div>
+
+  <main id="main"></main>
+</div>
+<div id="modalRoot"></div>
+
+<script>
+(function(){
+'use strict';
+var KEY='costa-rica-trip-planner-v1';
+var PROVINCES=['','Alajuela','Cartago','Guanacaste','Heredia','Limón','Puntarenas','San José'];
+var MODES=['Flight','Shared shuttle','Private transfer','Rental car','Public bus','Taxi','Boat','Domestic flight','Other'];
+var SCHEMA={
+  destinations:{one:'Destination',many:'Destinations',fields:[
+    {k:'name',l:'Place',t:'text',req:1,ph:'e.g. La Fortuna'},
+    {k:'region',l:'Province',t:'select',o:PROVINCES},
+    {k:'arrive',l:'Arrive',t:'date'},{k:'depart',l:'Depart',t:'date'},
+    {k:'notes',l:'Notes',t:'area',full:1,ph:'Why go, what to see, weather…'}]},
+  activities:{one:'Activity',many:'Activities',fields:[
+    {k:'name',l:'Activity',t:'text',req:1,full:1,ph:'e.g. Hanging bridges walk'},
+    {k:'dest',l:'Destination',t:'dest'},
+    {k:'date',l:'Date',t:'date'},{k:'time',l:'Start time',t:'time'},
+    {k:'duration',l:'Duration',t:'text',ph:'3 h'},
+    {k:'cost',l:'Total cost',t:'number'},
+    {k:'booked',l:'Booked',t:'check'},
+    {k:'notes',l:'Notes',t:'area',full:1,ph:'Operator, meeting point, what to bring…'}]},
+  transport:{one:'Transport',many:'Transport',fields:[
+    {k:'mode',l:'Mode',t:'select',o:MODES,req:1},
+    {k:'date',l:'Date',t:'date'},
+    {k:'from',l:'From',t:'place',req:1,ph:'San José'},{k:'to',l:'To',t:'place',req:1,ph:'La Fortuna'},
+    {k:'depart',l:'Departs',t:'time'},{k:'arrive',l:'Arrives',t:'time'},
+    {k:'cost',l:'Total cost',t:'number'},
+    {k:'booked',l:'Booked',t:'check'},
+    {k:'notes',l:'Notes',t:'area',full:1,ph:'Operator, pick-up point, travel time…'}]},
+  stays:{one:'Stay',many:'Stays',fields:[
+    {k:'name',l:'Accommodation',t:'text',req:1,full:1,ph:'e.g. Eco lodge near Arenal'},
+    {k:'dest',l:'Destination',t:'dest'},
+    {k:'ref',l:'Confirmation no.',t:'text'},
+    {k:'checkin',l:'Check-in',t:'date'},{k:'checkout',l:'Check-out',t:'date'},
+    {k:'cost',l:'Total cost',t:'number'},
+    {k:'booked',l:'Booked',t:'check'},
+    {k:'notes',l:'Notes',t:'area',full:1,ph:'Address, breakfast, late arrival…'}]}
+};
+var ORDER=['destinations','activities','transport','stays'];
+var DAY=864e5;
+
+/* ---------- state ---------- */
+var state=null, tab='timeline', storageOK=true;
+function uid(){return Math.random().toString(36).slice(2,9)}
+function seed(){
+  var d1='d'+uid(),d2='d'+uid(),d3='d'+uid(),d4='d'+uid();
+  return {example:true,
+    trip:{name:'Costa Rica, February 2027',start:'2027-02-06',end:'2027-02-17',cur:'€'},
+    destinations:[
+      {id:d1,name:'San José',region:'San José',arrive:'2027-02-06',depart:'2027-02-07',notes:'Arrival night near the airport.'},
+      {id:d2,name:'La Fortuna (Arenal)',region:'Alajuela',arrive:'2027-02-07',depart:'2027-02-10',notes:'Volcano views, hot springs, waterfall.'},
+      {id:d3,name:'Monteverde',region:'Puntarenas',arrive:'2027-02-10',depart:'2027-02-13',notes:'Cloud forest. Bring a light rain jacket.'},
+      {id:d4,name:'Manuel Antonio',region:'Puntarenas',arrive:'2027-02-13',depart:'2027-02-17',notes:'National park and beaches.'}],
+    activities:[
+      {id:'a'+uid(),name:'Hot springs evening',dest:d2,date:'2027-02-07',time:'18:00',duration:'3 h',cost:45,booked:false,notes:''},
+      {id:'a'+uid(),name:'La Fortuna waterfall and hanging bridges',dest:d2,date:'2027-02-08',time:'09:00',duration:'5 h',cost:70,booked:true,notes:'Meet at the lodge lobby.'},
+      {id:'a'+uid(),name:'Kayaking on Lake Arenal',dest:d2,date:'2027-02-09',time:'07:30',duration:'4 h',cost:60,booked:false,notes:''},
+      {id:'a'+uid(),name:'Guided night walk',dest:d3,date:'2027-02-11',time:'18:00',duration:'2 h',cost:35,booked:true,notes:''},
+      {id:'a'+uid(),name:'Canopy zip-line',dest:d3,date:'2027-02-12',time:'09:00',duration:'3 h',cost:75,booked:false,notes:''},
+      {id:'a'+uid(),name:'Manuel Antonio National Park, guided walk',dest:d4,date:'2027-02-14',time:'07:30',duration:'3 h',cost:55,booked:false,notes:'The park is closed on Mondays, so go on Sunday.'},
+      {id:'a'+uid(),name:'Catamaran sunset sail',dest:d4,date:'2027-02-15',time:'15:30',duration:'3 h',cost:85,booked:false,notes:''}],
+    transport:[
+      {id:'t'+uid(),mode:'Flight',date:'2027-02-06',from:'Amsterdam (AMS)',to:'San José Airport (SJO)',depart:'10:30',arrive:'15:00',cost:780,booked:true,notes:'Return fare, covers the flight home too.'},
+      {id:'t'+uid(),mode:'Taxi',date:'2027-02-06',from:'San José Airport (SJO)',to:'San José',depart:'15:45',arrive:'16:20',cost:30,booked:false,notes:''},
+      {id:'t'+uid(),mode:'Shared shuttle',date:'2027-02-07',from:'San José',to:'La Fortuna (Arenal)',depart:'08:00',arrive:'11:30',cost:60,booked:true,notes:''},
+      {id:'t'+uid(),mode:'Shared shuttle',date:'2027-02-10',from:'La Fortuna (Arenal)',to:'Monteverde',depart:'08:00',arrive:'12:30',cost:55,booked:false,notes:'The boat and jeep option is slower but scenic.'},
+      {id:'t'+uid(),mode:'Shared shuttle',date:'2027-02-13',from:'Monteverde',to:'Manuel Antonio',depart:'07:30',arrive:'12:30',cost:65,booked:false,notes:''},
+      {id:'t'+uid(),mode:'Shared shuttle',date:'2027-02-17',from:'Manuel Antonio',to:'San José Airport (SJO)',depart:'07:30',arrive:'11:30',cost:60,booked:false,notes:''},
+      {id:'t'+uid(),mode:'Flight',date:'2027-02-17',from:'San José Airport (SJO)',to:'Amsterdam (AMS)',depart:'15:30',arrive:'',cost:0,booked:true,notes:'Included in the outbound fare.'}],
+    stays:[
+      {id:'s'+uid(),name:'Boutique hotel, San José',dest:d1,ref:'',checkin:'2027-02-06',checkout:'2027-02-07',cost:95,booked:true,notes:''},
+      {id:'s'+uid(),name:'Eco lodge with Arenal view',dest:d2,ref:'',checkin:'2027-02-07',checkout:'2027-02-10',cost:330,booked:true,notes:''},
+      {id:'s'+uid(),name:'Cloud forest lodge',dest:d3,ref:'',checkin:'2027-02-10',checkout:'2027-02-13',cost:270,booked:false,notes:''},
+      {id:'s'+uid(),name:'Beach hotel near the park',dest:d4,ref:'',checkin:'2027-02-13',checkout:'2027-02-17',cost:560,booked:false,notes:''}]
+  };
+}
+function blank(){return {example:false,trip:{name:'My Costa Rica trip',start:'',end:'',cur:'$'},destinations:[],activities:[],transport:[],stays:[]}}
+function valid(o){
+  if(!o||typeof o!=='object'||!o.trip)return false;
+  for(var i=0;i<ORDER.length;i++){if(!Array.isArray(o[ORDER[i]]))return false}
+  return true;
+}
+function load(){
+  try{var raw=localStorage.getItem(KEY);if(raw){var o=JSON.parse(raw);if(valid(o))return o}}catch(e){storageOK=false}
+  return seed();
+}
+function save(){
+  var el=document.getElementById('saveState');
+  try{localStorage.setItem(KEY,JSON.stringify(state));storageOK=true}catch(e){storageOK=false}
+  el.textContent=storageOK?'Saved in this browser':'Browser storage is unavailable. Use Data to copy your plan.';
+  el.className='savestate'+(storageOK?'':' bad');
+}
+
+/* ---------- helpers ---------- */
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function pd(s){var p=s.split('-').map(Number);return Date.UTC(p[0],p[1]-1,p[2])}
+function fd(ms){return new Date(ms).toISOString().slice(0,10)}
+function isDate(s){return /^\d{4}-\d{2}-\d{2}$/.test(s||'')}
+function fmtDate(s){return isDate(s)?new Date(pd(s)).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}):''}
+function fmtShort(s){return isDate(s)?new Date(pd(s)).toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'}):''}
+function money(n){n=Number(n)||0;return state.trip.cur+Math.round(n).toLocaleString('en-GB')}
+function destName(id){var d=state.destinations.filter(function(x){return x.id===id})[0];return d?d.name:''}
+function find(kind,id){return state[kind].filter(function(x){return x.id===id})[0]}
+function title(kind,it){
+  if(kind==='transport')return (it.from||'?')+' → '+(it.to||'?');
+  return it.name||'Untitled';
+}
+function primaryDate(kind,it){
+  return (kind==='destinations'?it.arrive:kind==='stays'?it.checkin:it.date)||'9999-12-31';
+}
+function allDates(){
+  var out=[];
+  [state.trip.start,state.trip.end].forEach(function(d){if(isDate(d))out.push(d)});
+  state.destinations.forEach(function(x){[x.arrive,x.depart].forEach(function(d){if(isDate(d))out.push(d)})});
+  state.activities.forEach(function(x){if(isDate(x.date))out.push(x.date)});
+  state.transport.forEach(function(x){if(isDate(x.date))out.push(x.date)});
+  state.stays.forEach(function(x){[x.checkin,x.checkout].forEach(function(d){if(isDate(d))out.push(d)})});
+  return out.sort();
+}
+function range(){
+  var d=allDates();if(!d.length)return null;
+  var a=pd(d[0]),b=pd(d[d.length-1]);
+  return {start:a,end:b,n:Math.round((b-a)/DAY)+1};
+}
+function stayCovering(day){
+  return state.stays.filter(function(s){return isDate(s.checkin)&&isDate(s.checkout)&&s.checkin<=day&&day<s.checkout})[0];
+}
+function eventsFor(day){
+  var ev=[];
+  state.transport.forEach(function(t){if(t.date===day)ev.push({kind:'transport',it:t,key:t.depart||'08:00',time:t.depart})});
+  state.activities.forEach(function(a){if(a.date===day)ev.push({kind:'activities',it:a,key:a.time||'12:00',time:a.time})});
+  state.stays.forEach(function(s){
+    if(s.checkout===day)ev.push({kind:'stays',it:s,key:'09:00',tag:'Check out'});
+    if(s.checkin===day)ev.push({kind:'stays',it:s,key:'15:00',tag:'Check in'});
+  });
+  return ev.sort(function(a,b){return a.key<b.key?-1:a.key>b.key?1:0});
+}
+function destsOn(day){
+  return state.destinations.filter(function(d){
+    if(!isDate(d.arrive))return false;
+    var end=isDate(d.depart)?d.depart:d.arrive;
+    return d.arrive<=day&&day<=end;
+  }).sort(function(a,b){return a.arrive<b.arrive?-1:1});
+}
+function totals(){
+  var cost=0,booked=0,items=0,bookedCost=0;
+  ['activities','transport','stays'].forEach(function(k){state[k].forEach(function(x){
+    items++;var c=Number(x.cost)||0;cost+=c;if(x.booked){booked++;bookedCost+=c}
+  })});
+  return {cost:cost,booked:booked,items:items,bookedCost:bookedCost};
+}
+
+/* ---------- render ---------- */
+var main=document.getElementById('main');
+function renderHeader(){
+  var t=state.trip,r=range(),tot=totals();
+  var nm=document.getElementById('tripName');if(document.activeElement!==nm)nm.value=t.name;
+  var s=document.getElementById('tripStart');if(document.activeElement!==s)s.value=t.start;
+  var e=document.getElementById('tripEnd');if(document.activeElement!==e)e.value=t.end;
+  var c=document.getElementById('tripCur');if(document.activeElement!==c)c.value=t.cur;
+  var parts=[];
+  if(r)parts.push('<span><b>'+r.n+'</b> days</span>');
+  parts.push('<span><b>'+state.destinations.length+'</b> destinations</span>');
+  parts.push('<span><b>'+tot.booked+'</b> of '+tot.items+' bookings made</span>');
+  parts.push('<span>Estimated cost <b>'+money(tot.cost)+'</b> ('+money(tot.bookedCost)+' paid or booked)</span>');
+  document.getElementById('stats').innerHTML=parts.join('');
+}
+function renderTabs(){
+  var tabs=[['timeline','Timeline',null,0]];
+  ORDER.forEach(function(k){tabs.push([k,SCHEMA[k].many,k,state[k].length])});
+  document.getElementById('tabs').innerHTML=tabs.map(function(x){
+    return '<button class="tab" role="tab" type="button" data-tab="'+x[0]+'" aria-selected="'+(tab===x[0])+'">'+
+      (x[2]?'<span class="dot d-'+x[2]+'"></span>':'')+esc(x[1])+(x[2]?'<span class="n">'+x[3]+'</span>':'')+'</button>';
+  }).join('');
+}
+function banner(){
+  if(!state.example)return '';
+  return '<div class="banner"><p>This is an example trip so you can see how the planner works. Change anything, or clear it to start your own.</p><button class="btn" type="button" data-act="clear-example">Clear example and start fresh</button></div>';
+}
+function addButtons(){
+  return '<div class="actions">'+ORDER.map(function(k){return '<button class="btn" type="button" data-add="'+k+'"><span class="dot d-'+k+'"></span> '+SCHEMA[k].one+'</button>'}).join('')+'</div>';
+}
+function renderGantt(r){
+  var ds=state.destinations.filter(function(d){return isDate(d.arrive)}).sort(function(a,b){return a.arrive<b.arrive?-1:1});
+  if(!ds.length)return '';
+  var h='<div class="gantt" style="grid-template-columns:repeat('+r.n+',minmax(26px,1fr))">';
+  for(var i=0;i<r.n;i++){
+    var ms=r.start+i*DAY,dt=new Date(ms),dow=dt.getUTCDay();
+    h+='<div class="g-head'+((dow===0||dow===6)?' we':'')+'" style="grid-row:1;grid-column:'+(i+1)+'">'+dt.getUTCDate()+'<small>'+(dt.getUTCDate()===1||i===0?dt.toLocaleDateString('en-GB',{month:'short',timeZone:'UTC'}):'')+'</small></div>';
+  }
+  ds.forEach(function(d,idx){
+    var a=Math.round((pd(d.arrive)-r.start)/DAY)+1;
+    var b=(isDate(d.depart)?Math.round((pd(d.depart)-r.start)/DAY):Math.round((pd(d.arrive)-r.start)/DAY))+2;
+    h+='<button type="button" class="g-bar" data-edit="destinations:'+esc(d.id)+'" style="grid-row:'+(idx+2)+';grid-column:'+a+'/'+b+'" title="'+esc(d.name)+'">'+esc(d.name)+'</button>';
+  });
+  return h+'</div>';
+}
+function evHTML(e){
+  var it=e.it,k=e.kind,side='',sub='',t=e.time||'';
+  if(k==='activities'){
+    sub=[destName(it.dest),it.duration].filter(Boolean).join(' · ');
+  }else if(k==='transport'){
+    sub=[it.mode,it.arrive?'arrives '+it.arrive:''].filter(Boolean).join(' · ');
+  }else{
+    sub=[destName(it.dest),it.ref?'Ref '+it.ref:''].filter(Boolean).join(' · ');
+  }
+  if(k!=='stays'||e.tag==='Check in'){
+    if(Number(it.cost)>0)side+='<span class="mono">'+esc(money(it.cost))+'</span>';
+  }
+  side+='<span class="pill '+(it.booked?'yes':'no')+'">'+(it.booked?'Booked':'To book')+'</span>';
+  var label=k==='stays'?e.tag:SCHEMA[k].one;
+  var ttl=k==='stays'?it.name:title(k,it);
+  return '<button type="button" class="ev" data-edit="'+k+':'+esc(it.id)+'"><span class="t">'+esc(t)+'</span><span class="what"><div class="ttl"><span class="chip c-'+k+'">'+esc(label)+'</span>'+esc(ttl)+'</div>'+(sub?'<div class="sub">'+esc(sub)+'</div>':'')+'</span><span class="side">'+side+'</span></button>';
+}
+function renderTimeline(){
+  var r=range();
+  var h=banner();
+  if(!r){
+    h+='<div class="empty"><h3>Start with where you want to go</h3><p>Add your first destination or set the trip dates above. Everything you add shows up here, day by day.</p>'+addButtons()+'</div>';
+    main.innerHTML=h;return;
+  }
+  h+='<div class="list-head"><h2>Day by day</h2>'+addButtons()+'</div>';
+  var g=renderGantt(r);
+  if(g)h+='<section><div class="sec-title">Route</div><div class="gantt-scroll">'+g+'</div></section>';
+  h+='<section><div class="days">';
+  var tripEnd=isDate(state.trip.end)?state.trip.end:fd(r.end);
+  for(var i=0;i<r.n;i++){
+    var ms=r.start+i*DAY,day=fd(ms),dt=new Date(ms),dow=dt.getUTCDay();
+    var dl=destsOn(day),ev=eventsFor(day),cover=stayCovering(day);
+    var dtitle=dl.length?dl.map(function(d){return esc(d.name)}).join(' → '):'<span class="quiet">No destination set</span>';
+    var night='';
+    if(cover){
+      night='<div class="night"><span class="dot d-stays"></span>Sleeping at '+esc(cover.name)+'</div>';
+    }else if(day<tripEnd&&(isDate(state.trip.start)?day>=state.trip.start:true)){
+      night='<div class="night gap"><span>No accommodation for this night.</span><button class="btn" type="button" data-add="stays" data-date="'+day+'">Add a stay</button></div>';
+    }
+    h+='<div class="day'+((dow===0||dow===6)?' we':'')+'"><div class="rail"><div class="wd">'+dt.toLocaleDateString('en-GB',{weekday:'short',timeZone:'UTC'})+'</div><div class="dn">'+dt.getUTCDate()+'</div><div class="mo">'+dt.toLocaleDateString('en-GB',{month:'short',timeZone:'UTC'})+'</div></div>'+
+      '<div class="card"><div class="day-head"><h3>'+dtitle+'</h3><span class="dnum">Day '+(i+1)+'</span></div>'+
+      (ev.length?ev.map(evHTML).join(''):'<div class="free">Nothing planned yet.</div>')+night+'</div></div>';
+  }
+  h+='</div></section>';
+  main.innerHTML=h;
+}
+function renderList(kind){
+  var S=SCHEMA[kind],items=state[kind].slice().sort(function(a,b){
+    var x=primaryDate(kind,a),y=primaryDate(kind,b);return x<y?-1:x>y?1:0;
+  });
+  var h=banner()+'<div class="list-head"><h2>'+esc(S.many)+'</h2><button class="btn primary" type="button" data-add="'+kind+'">+ Add '+esc(S.one.toLowerCase())+'</button></div>';
+  if(!items.length){
+    h+='<div class="empty"><h3>No '+esc(S.many.toLowerCase())+' yet</h3><p>'+({
+      destinations:'Add the places you plan to stay. Their dates draw the route on the timeline.',
+      activities:'Add tours, hikes and anything you want to do, with a date and start time.',
+      transport:'Add shuttles, flights, rental cars and boat rides, so every move between places is planned.',
+      stays:'Add hotels and lodges with check-in and check-out dates. The timeline flags nights without a bed.'}[kind])+'</p><button class="btn primary" type="button" data-add="'+kind+'">Add '+esc(S.one.toLowerCase())+'</button></div>';
+    main.innerHTML=h;return;
+  }
+  h+='<div class="list">'+items.map(function(it){
+    var sub=[],side='';
+    if(kind==='destinations'){
+      sub=[it.region,isDate(it.arrive)?fmtShort(it.arrive)+(isDate(it.depart)?' → '+fmtShort(it.depart):''):'No dates yet'];
+      if(isDate(it.arrive)&&isDate(it.depart)){var n=Math.round((pd(it.depart)-pd(it.arrive))/DAY);sub.push(n+(n===1?' night':' nights'))}
+    }else if(kind==='activities'){
+      sub=[fmtDate(it.date)+(it.time?' at '+it.time:''),destName(it.dest),it.duration];
+    }else if(kind==='transport'){
+      sub=[it.mode,fmtDate(it.date),(it.depart||'')+(it.arrive?' → '+it.arrive:'')];
+    }else{
+      sub=[destName(it.dest),isDate(it.checkin)?fmtShort(it.checkin)+' → '+fmtShort(it.checkout):'No dates yet',it.ref?'Ref '+it.ref:''];
+      if(isDate(it.checkin)&&isDate(it.checkout)){var nn=Math.round((pd(it.checkout)-pd(it.checkin))/DAY);sub.push(nn+(nn===1?' night':' nights'))}
+    }
+    if(kind!=='destinations'){
+      if(Number(it.cost)>0)side+='<span class="mono">'+esc(money(it.cost))+'</span>';
+      side+='<span class="pill '+(it.booked?'yes':'no')+'">'+(it.booked?'Booked':'To book')+'</span>';
+    }
+    return '<button type="button" class="row" data-edit="'+kind+':'+esc(it.id)+'"><span class="dot d-'+kind+'"></span><span><div class="ttl">'+esc(title(kind,it))+'</div><div class="sub">'+esc(sub.filter(Boolean).join(' · '))+'</div></span><span class="side">'+side+'</span></button>';
+  }).join('')+'</div>';
+  main.innerHTML=h;
+}
+function render(){
+  renderHeader();renderTabs();
+  if(tab==='timeline')renderTimeline();else renderList(tab);
+}
+
+/* ---------- modal ---------- */
+var root=document.getElementById('modalRoot'),lastFocus=null;
+function closeModal(){root.innerHTML='';if(lastFocus&&lastFocus.focus)try{lastFocus.focus()}catch(e){}}
+function fieldHTML(f,v){
+  var id='f_'+f.k,full=f.full?' full':'';
+  if(f.t==='check')return '<div class="field'+full+'"><label class="chk" for="'+id+'"><input type="checkbox" id="'+id+'" name="'+f.k+'"'+(v?' checked':'')+'> '+esc(f.l)+'</label></div>';
+  var inp;
+  if(f.t==='area')inp='<textarea id="'+id+'" name="'+f.k+'" rows="3" placeholder="'+esc(f.ph||'')+'">'+esc(v||'')+'</textarea>';
+  else if(f.t==='select')inp='<select id="'+id+'" name="'+f.k+'">'+f.o.map(function(o){return '<option value="'+esc(o)+'"'+(o===v?' selected':'')+'>'+(esc(o)||'Choose…')+'</option>'}).join('')+'</select>';
+  else if(f.t==='dest')inp='<select id="'+id+'" name="'+f.k+'"><option value="">None</option>'+state.destinations.map(function(d){return '<option value="'+esc(d.id)+'"'+(d.id===v?' selected':'')+'>'+esc(d.name)+'</option>'}).join('')+'</select>';
+  else if(f.t==='place')inp='<input id="'+id+'" name="'+f.k+'" type="text" list="places" value="'+esc(v||'')+'" placeholder="'+esc(f.ph||'')+'" autocomplete="off">';
+  else if(f.t==='number')inp='<input id="'+id+'" name="'+f.k+'" type="number" min="0" step="any" inputmode="decimal" value="'+esc(v==null?'':v)+'">';
+  else inp='<input id="'+id+'" name="'+f.k+'" type="'+f.t+'" value="'+esc(v||'')+'" placeholder="'+esc(f.ph||'')+'">';
+  return '<div class="field'+full+'"><label for="'+id+'">'+esc(f.l)+(f.req?' *':'')+'</label>'+inp+'</div>';
+}
+function openForm(kind,id,preset){
+  lastFocus=document.activeElement;
+  var S=SCHEMA[kind],it=id?find(kind,id):null,vals=it||preset||{};
+  if(!it){
+    if(kind==='transport'&&!vals.mode)vals.mode='Shared shuttle';
+  }
+  var places=state.destinations.map(function(d){return d.name}).concat(['San José Airport (SJO)','Liberia Airport (LIR)']);
+  var h='<div class="overlay" id="ovl"><form class="modal" id="form" novalidate role="dialog" aria-modal="true" aria-labelledby="mt">'+
+    '<h2 id="mt"><span class="dot d-'+kind+'"></span>'+(it?'Edit ':'Add ')+esc(S.one.toLowerCase())+'</h2>'+
+    '<div class="form">'+S.fields.map(function(f){return fieldHTML(f,vals[f.k])}).join('')+'</div>'+
+    '<datalist id="places">'+places.map(function(p){return '<option value="'+esc(p)+'">'}).join('')+'</datalist>'+
+    '<p class="err" id="err" role="alert"></p>'+
+    '<div class="foot">'+(it?'<button class="btn danger" type="button" id="delBtn">Delete</button>':'')+
+    '<div class="r"><button class="btn" type="button" id="cancelBtn">Cancel</button><button class="btn primary" type="submit">Save</button></div></div></form></div>';
+  root.innerHTML=h;
+  var first=root.querySelector('input:not([type=checkbox]),select,textarea');if(first)first.focus();
+  document.getElementById('cancelBtn').onclick=closeModal;
+  document.getElementById('ovl').addEventListener('mousedown',function(e){if(e.target.id==='ovl')closeModal()});
+  var del=document.getElementById('delBtn');
+  if(del)del.onclick=function(){
+    if(!del.classList.contains('armed')){del.classList.add('armed');del.textContent='Click again to delete';return}
+    state[kind]=state[kind].filter(function(x){return x.id!==id});
+    if(kind==='destinations'){['activities','stays'].forEach(function(k){state[k].forEach(function(x){if(x.dest===id)x.dest=''})})}
+    commit();closeModal();
+  };
+  document.getElementById('form').onsubmit=function(ev){
+    ev.preventDefault();
+    var o={id:it?it.id:kind[0]+uid()},err='';
+    S.fields.forEach(function(f){
+      var el=document.getElementById('f_'+f.k);
+      if(f.t==='check')o[f.k]=el.checked;
+      else if(f.t==='number')o[f.k]=el.value===''?0:Number(el.value);
+      else o[f.k]=el.value.trim();
+      if(f.req&&!o[f.k]&&!err)err='Fill in "'+f.l+'" to save.';
+    });
+    if(!err&&kind==='destinations'&&o.arrive&&o.depart&&o.depart<o.arrive)err='Departure must be on or after arrival.';
+    if(!err&&kind==='stays'&&o.checkin&&o.checkout&&o.checkout<=o.checkin)err='Check-out must be after check-in.';
+    if(err){document.getElementById('err').textContent=err;return}
+    if(it){var i=state[kind].indexOf(it);state[kind][i]=o}else state[kind].push(o);
+    commit();closeModal();
+  };
+}
+
+/* ---------- data modal ---------- */
+function openData(){
+  lastFocus=document.activeElement;
+  var json=JSON.stringify(state,null,1);
+  root.innerHTML='<div class="overlay" id="ovl"><div class="modal data" role="dialog" aria-modal="true" aria-labelledby="mt"><h2 id="mt">Your data</h2>'+
+    '<p class="hint">Your plan is saved in this browser only. Copy it to back it up or move it to another browser or device.</p>'+
+    '<div class="field"><label for="exp">Export</label><textarea id="exp" readonly>'+esc(json)+'</textarea></div>'+
+    '<div class="actions"><button class="btn" type="button" id="copyBtn">Copy to clipboard</button></div>'+
+    '<div class="field"><label for="imp">Import (paste a copied plan)</label><textarea id="imp" placeholder="Paste exported JSON here"></textarea></div>'+
+    '<p class="err" id="err" role="alert"></p>'+
+    '<div class="foot"><button class="btn danger" type="button" id="wipeBtn">Erase everything</button><div class="r"><button class="btn" type="button" id="closeBtn">Close</button><button class="btn primary" type="button" id="impBtn">Replace my plan</button></div></div></div></div>';
+  document.getElementById('closeBtn').onclick=closeModal;
+  document.getElementById('ovl').addEventListener('mousedown',function(e){if(e.target.id==='ovl')closeModal()});
+  document.getElementById('copyBtn').onclick=function(){
+    var ta=document.getElementById('exp'),b=this;
+    function done(){b.textContent='Copied'}
+    function fallback(){ta.select();try{document.execCommand('copy');done()}catch(e){b.textContent='Select the text and copy it'}}
+    try{navigator.clipboard.writeText(ta.value).then(done,fallback)}catch(e){fallback()}
+  };
+  document.getElementById('impBtn').onclick=function(){
+    var err=document.getElementById('err');
+    try{
+      var o=JSON.parse(document.getElementById('imp').value);
+      if(!valid(o)){err.textContent='That is not a plan exported from this page.';return}
+      o.trip=Object.assign({name:'My Costa Rica trip',start:'',end:'',cur:'$'},o.trip);
+      state=o;commit();closeModal();
+    }catch(e){err.textContent='Could not read that text. Paste the full exported JSON.'}
+  };
+  var w=document.getElementById('wipeBtn');
+  w.onclick=function(){
+    if(!w.classList.contains('armed')){w.classList.add('armed');w.textContent='Click again to erase';return}
+    state=blank();commit();closeModal();
+  };
+}
+
+/* ---------- wiring ---------- */
+function commit(){save();render()}
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&root.firstChild)closeModal()});
+document.getElementById('dataBtn').onclick=openData;
+document.getElementById('tabs').addEventListener('click',function(e){
+  var b=e.target.closest('[data-tab]');if(!b)return;
+  tab=b.getAttribute('data-tab');try{history.replaceState(null,'','#'+tab)}catch(x){}
+  render();
+});
+main.addEventListener('click',function(e){
+  var a=e.target.closest('[data-add]');
+  if(a){
+    var k=a.getAttribute('data-add'),dt=a.getAttribute('data-date'),pre={};
+    var base=dt||state.trip.start||'';
+    if(k==='destinations'){
+      var last=state.destinations.map(function(d){return d.depart||d.arrive}).filter(isDate).sort().pop();
+      pre.arrive=last||base;
+    }else if(k==='stays'){pre.checkin=base}
+    else pre.date=base;
+    openForm(k,null,pre);return;
+  }
+  var ed=e.target.closest('[data-edit]');
+  if(ed){var p=ed.getAttribute('data-edit').split(':');openForm(p[0],p[1]);return}
+  var act=e.target.closest('[data-act]');
+  if(act&&act.getAttribute('data-act')==='clear-example'){
+    state=blank();commit();
+  }
+});
+['tripName','tripStart','tripEnd','tripCur'].forEach(function(id){
+  document.getElementById(id).addEventListener('input',function(){
+    var t=state.trip;
+    t.name=document.getElementById('tripName').value;
+    t.start=document.getElementById('tripStart').value;
+    t.end=document.getElementById('tripEnd').value;
+    t.cur=document.getElementById('tripCur').value||'$';
+    save();
+    if(id==='tripName')return;
+    renderHeader();if(tab==='timeline')renderTimeline();
+  });
+});
+
+state=load();
+try{var h=location.hash.replace('#','');if(h==='timeline'||SCHEMA[h])tab=h}catch(e){}
+render();save();
+})();
+</script>
+
+</body></html>
