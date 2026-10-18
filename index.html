@@ -61,6 +61,10 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .tab .n{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
 .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
 .d-destinations{background:var(--k-dest)}.d-activities{background:var(--k-act)}.d-transport{background:var(--k-trans)}.d-stays{background:var(--k-stay)}
+.d-todo{background:var(--k-todo)}
+:root{--k-todo:#d9a406}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--k-todo:#f2c94c}}
+:root[data-theme="dark"]{--k-todo:#f2c94c}
 
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:7px 12px;font-weight:500;font-size:14px}
 .btn:hover{background:var(--surface-2)}
@@ -160,6 +164,13 @@ main>*{min-width:0}
 .foot .r{display:flex;gap:8px;margin-left:auto}
 .data textarea{width:100%;min-height:120px;font-family:var(--font-mono);font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px;color:var(--fg)}
 .hint{color:var(--muted);font-size:13px;margin:0}
+.todo-add{display:flex;gap:8px}
+.todo-add input{flex:1;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:8px 10px}
+.todo{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px 8px 14px}
+.todo input[type=checkbox]{width:18px;height:18px;margin:0;accent-color:var(--accent)}
+.todo .tx{overflow-wrap:anywhere}
+.todo.done .tx{text-decoration:line-through;color:var(--muted)}
+.todo .btn.ghost{padding:4px 9px}
 @media (max-width:560px){
   .day{grid-template-columns:48px minmax(0,1fr);gap:8px}
   .rail .dn{font-size:26px}
@@ -239,6 +250,11 @@ function uid(){return Math.random().toString(36).slice(2,9)}
 function seed(){
   var d1='d'+uid(),d2='d'+uid(),d3='d'+uid(),d4='d'+uid();
   return {example:true,
+    todos:[
+      {id:'o'+uid(),text:'Check that passports are valid for the trip',done:true},
+      {id:'o'+uid(),text:'Book the cloud forest lodge in Monteverde',done:false},
+      {id:'o'+uid(),text:'Reserve Manuel Antonio park tickets',done:false},
+      {id:'o'+uid(),text:'Arrange travel insurance',done:false}],
     trip:{name:'Costa Rica, February 2027',start:'2027-02-06',end:'2027-02-17',cur:'€'},
     destinations:[
       {id:d1,name:'San José',region:'San José',arrive:'2027-02-06',depart:'2027-02-07',notes:'Arrival night near the airport.'},
@@ -268,14 +284,14 @@ function seed(){
       {id:'s'+uid(),name:'Beach hotel near the park',dest:d4,ref:'',checkin:'2027-02-13',checkout:'2027-02-17',cost:560,booked:false,notes:''}]
   };
 }
-function blank(){return {example:false,trip:{name:'My Costa Rica trip',start:'',end:'',cur:'$'},destinations:[],activities:[],transport:[],stays:[]}}
+function blank(){return {example:false,todos:[],trip:{name:'My Costa Rica trip',start:'',end:'',cur:'$'},destinations:[],activities:[],transport:[],stays:[]}}
 function valid(o){
   if(!o||typeof o!=='object'||!o.trip)return false;
   for(var i=0;i<ORDER.length;i++){if(!Array.isArray(o[ORDER[i]]))return false}
   return true;
 }
 function load(){
-  try{var raw=localStorage.getItem(KEY);if(raw){var o=JSON.parse(raw);if(valid(o))return o}}catch(e){storageOK=false}
+  try{var raw=localStorage.getItem(KEY);if(raw){var o=JSON.parse(raw);if(valid(o)){if(!Array.isArray(o.todos))o.todos=[];return o}}}catch(e){storageOK=false}
   return seed();
 }
 function save(){
@@ -362,6 +378,7 @@ function renderHeader(){
 function renderTabs(){
   var tabs=[['timeline','Timeline',null,0]];
   ORDER.forEach(function(k){tabs.push([k,SCHEMA[k].many,k,state[k].length])});
+  tabs.push(['todo','To do','todo',state.todos.filter(function(t){return !t.done}).length]);
   document.getElementById('tabs').innerHTML=tabs.map(function(x){
     return '<button class="tab" role="tab" type="button" data-tab="'+x[0]+'" aria-selected="'+(tab===x[0])+'">'+
       (x[2]?'<span class="dot d-'+x[2]+'"></span>':'')+esc(x[1])+(x[2]?'<span class="n">'+x[3]+'</span>':'')+'</button>';
@@ -470,9 +487,22 @@ function renderList(kind){
   }).join('')+'</div>';
   main.innerHTML=h;
 }
+function renderTodo(){
+  var open=state.todos.filter(function(t){return !t.done}),done=state.todos.filter(function(t){return t.done});
+  var h=banner()+'<div class="list-head"><h2>To do</h2>'+(done.length?'<button class="btn" type="button" data-act="clear-done">Clear '+done.length+' completed</button>':'')+'</div>'+
+    '<div class="todo-add"><input id="todoText" type="text" maxlength="200" placeholder="Add something to do, e.g. buy sunscreen" aria-label="New to-do" autocomplete="off"><button class="btn primary" type="button" data-act="todo-add">Add</button></div>';
+  if(!state.todos.length){
+    h+='<div class="empty"><h3>Nothing to do yet</h3><p>Jot down visas, bookings to make and things to pack. Tick them off as you go.</p></div>';
+  }else{
+    h+='<div class="list">'+open.concat(done).map(function(t){
+      return '<div class="todo'+(t.done?' done':'')+'"><input type="checkbox" data-todo="'+esc(t.id)+'"'+(t.done?' checked':'')+' aria-label="Done: '+esc(t.text)+'"><span class="tx">'+esc(t.text)+'</span><button class="btn ghost" type="button" data-todel="'+esc(t.id)+'" aria-label="Delete '+esc(t.text)+'">✕</button></div>';
+    }).join('')+'</div>';
+  }
+  main.innerHTML=h;
+}
 function render(){
   renderHeader();renderTabs();
-  if(tab==='timeline')renderTimeline();else renderList(tab);
+  if(tab==='timeline')renderTimeline();else if(tab==='todo')renderTodo();else renderList(tab);
 }
 
 /* ---------- modal ---------- */
@@ -557,6 +587,7 @@ function openData(){
     try{
       var o=JSON.parse(document.getElementById('imp').value);
       if(!valid(o)){err.textContent='That is not a plan exported from this page.';return}
+      if(!Array.isArray(o.todos))o.todos=[];
       o.trip=Object.assign({name:'My Costa Rica trip',start:'',end:'',cur:'$'},o.trip);
       state=o;commit();closeModal();
     }catch(e){err.textContent='Could not read that text. Paste the full exported JSON.'}
@@ -578,6 +609,11 @@ document.getElementById('tabs').addEventListener('click',function(e){
   render();
 });
 main.addEventListener('click',function(e){
+  if(e.target.closest('[data-act="todo-add"]')){addTodo();return}
+  var td=e.target.closest('[data-todel]');
+  if(td){var tid=td.getAttribute('data-todel');state.todos=state.todos.filter(function(t){return t.id!==tid});commit();return}
+  var cd=e.target.closest('[data-act="clear-done"]');
+  if(cd){state.todos=state.todos.filter(function(t){return !t.done});commit();return}
   var gb=e.target.closest('[data-bar]');
   if(gb){if(e.detail===0)openForm('destinations',gb.getAttribute('data-bar'));return}
   var a=e.target.closest('[data-add]');
@@ -597,6 +633,23 @@ main.addEventListener('click',function(e){
   if(act&&act.getAttribute('data-act')==='clear-example'){
     state=blank();commit();
   }
+});
+main.addEventListener('change',function(e){
+  var c=e.target.closest('[data-todo]');if(!c)return;
+  var id=c.getAttribute('data-todo');
+  state.todos.forEach(function(t){if(t.id===id)t.done=c.checked});
+  commit();
+});
+function addTodo(){
+  var inp=document.getElementById('todoText');if(!inp)return;
+  var v=inp.value.trim();
+  if(!v){inp.focus();return}
+  state.todos.push({id:'o'+uid(),text:v,done:false});
+  commit();
+  var n=document.getElementById('todoText');if(n)n.focus();
+}
+main.addEventListener('keydown',function(e){
+  if(e.target.id==='todoText'&&e.key==='Enter'&&!e.isComposing){e.preventDefault();addTodo()}
 });
 /* ---------- drag to move / resize destinations on the route ---------- */
 var drag=null;
@@ -657,7 +710,7 @@ document.addEventListener('pointercancel',function(e){endDrag(e,true)});
 });
 
 state=load();
-try{var h=location.hash.replace('#','');if(h==='timeline'||SCHEMA[h])tab=h}catch(e){}
+try{var h=location.hash.replace('#','');if(h==='timeline'||h==='todo'||SCHEMA[h])tab=h}catch(e){}
 render();save();
 })();
 </script>
