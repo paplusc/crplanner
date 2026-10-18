@@ -5,7 +5,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* Layout: sticky trip header + tab bar over a single column. Timeline = date rail (left) + event list per day; other tabs = sortable lists. Gantt strip of destinations sits above the day-by-day list. */
 :root{
   --bg:#f1f4ec; --surface:#fafcf6; --surface-2:#e8ede0; --fg:#16231d; --muted:#586a60; --line:#d6ddcc;
   --accent:#0b6b57; --accent-ink:#ffffff; --warn:#a8470f; --warn-bg:#f8e6d6; --ok:#1d7a4a;
@@ -27,61 +26,60 @@
   --k-dest-bg:#173a2d; --k-act-bg:#3b2616; --k-trans-bg:#1a2c4d; --k-stay-bg:#2c1f45; color-scheme:dark}
 
 *{box-sizing:border-box}
-html,body{margin:0}
+html,body{margin:0;overflow-x:hidden;max-width:100vw}
 body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.45;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
-.wrap{max-width:980px;margin:0 auto}
+.wrap{max-width:980px;margin:0 auto;width:100%;min-width:0}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance}
 .mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
 
-/* header */
-.top{padding:22px 0 14px;display:grid;gap:12px}
-.trip-name{font-family:var(--font-display);font-weight:700;font-size:clamp(26px,5vw,40px);letter-spacing:-.02em;line-height:1.1;
-  background:transparent;border:0;border-bottom:1px dashed transparent;padding:2px 0;width:100%}
+.top{padding:22px 0 14px;display:grid;gap:12px;width:100%;min-width:0}
+.trip-name{font-family:var(--font-display);font-weight:700;font-size:clamp(24px,5vw,40px);letter-spacing:-.02em;line-height:1.1;
+  background:transparent;border:0;border-bottom:1px dashed transparent;padding:2px 0;width:100%;min-width:0}
 .trip-name:hover,.trip-name:focus{border-bottom-color:var(--line)}
-.trip-meta{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:end}
+.trip-meta{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:end;width:100%}
 .trip-meta label{display:grid;gap:3px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .trip-meta input{font-size:14px;letter-spacing:0;text-transform:none;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;color:var(--fg)}
 .trip-meta input[type=text]{width:64px}
-.stats{display:flex;flex-wrap:wrap;gap:6px 18px;color:var(--muted);font-size:13px;margin:0}
+.stats{display:flex;flex-wrap:wrap;gap:6px 18px;color:var(--muted);font-size:13px;margin:0;width:100%}
 .stats b{color:var(--fg);font-weight:600}
 .savestate{font-size:12px;color:var(--muted)}
 .savestate.bad{color:var(--warn)}
 
 .bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);
-  display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:8px 0}
+  display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:8px 0;width:100%}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
-.tabs{display:flex;gap:2px;overflow-x:auto;min-width:0;max-width:100%}
-.tab{background:none;border:0;padding:8px 12px;border-radius:6px;color:var(--muted);font-weight:500;white-space:nowrap;display:flex;gap:6px;align-items:center}
+.tabs{display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0;max-width:100%;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{background:none;border:0;padding:8px 12px;border-radius:6px;color:var(--muted);font-weight:500;white-space:nowrap;display:flex;gap:6px;align-items:center;flex:none}
 .tab:hover{background:var(--surface-2)}
 .tab[aria-selected=true]{color:var(--fg);background:var(--surface-2);box-shadow:inset 0 -2px 0 var(--accent)}
 .tab .n{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
 .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
 .d-destinations{background:var(--k-dest)}.d-activities{background:var(--k-act)}.d-transport{background:var(--k-trans)}.d-stays{background:var(--k-stay)}
 
-.btn{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:7px 12px;font-weight:500;font-size:14px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:7px 12px;font-weight:500;font-size:14px;white-space:nowrap}
 .btn:hover{background:var(--surface-2)}
 .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .btn.primary:hover{filter:brightness(1.08)}
 .btn.danger{color:var(--warn);border-color:var(--warn)}
 .btn.danger.armed{background:var(--warn);color:var(--bg)}
 .btn.ghost{border-color:transparent;background:none;color:var(--muted)}
-.actions{display:flex;gap:6px;flex-wrap:wrap}
+.actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 
-main{padding-top:20px;display:grid;gap:20px}
-.banner{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px 14px;display:flex;gap:10px 16px;flex-wrap:wrap;align-items:center;justify-content:space-between;font-size:14px}
+main{padding-top:20px;display:grid;gap:20px;width:100%;min-width:0}
+.banner{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px 14px;display:flex;gap:10px 16px;flex-wrap:wrap;align-items:center;justify-content:space-between;font-size:14px;width:100%}
 .banner p{margin:0;min-width:0}
 .sec-title{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;font-family:var(--font-body);margin-bottom:8px}
 
-.empty{border:1px dashed var(--line);border-radius:10px;padding:28px 20px;text-align:center;color:var(--muted);display:grid;gap:12px;justify-items:center}
+.empty{border:1px dashed var(--line);border-radius:10px;padding:28px 20px;text-align:center;color:var(--muted);display:grid;gap:12px;justify-items:center;width:100%}
 .empty h3{color:var(--fg);font-size:20px}
 .empty p{margin:0;max-width:46ch}
 
-/* gantt */
-.gantt-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.gantt-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:10px;background:var(--surface);width:100%;max-width:100%}
 .gantt{display:grid;grid-auto-rows:30px;padding:8px 10px;gap:4px 0;min-width:max-content;width:100%}
 .g-head{font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:center;border-left:1px solid var(--line);line-height:1.1;padding-top:2px}
 .g-head.we{background:var(--surface-2)}
@@ -91,51 +89,48 @@ main{padding-top:20px;display:grid;gap:20px}
 :root[data-theme="dark"] .g-bar{color:#06231a}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .g-bar{color:#06231a}}
 
-/* timeline */
-.days{display:grid;gap:12px}
-.day{display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px}
+.days{display:grid;gap:12px;width:100%;min-width:0}
+.day{display:grid;grid-template-columns:56px minmax(0,1fr);gap:10px;width:100%;min-width:0}
 .rail{text-align:center;padding-top:10px}
-.rail .wd{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-.rail .dn{font-family:var(--font-display);font-weight:700;font-size:32px;line-height:1;letter-spacing:-.03em}
-.rail .mo{font-family:var(--font-mono);font-size:11px;color:var(--muted);text-transform:uppercase}
+.rail .wd{font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.rail .dn{font-family:var(--font-display);font-weight:700;font-size:28px;line-height:1;letter-spacing:-.03em}
+.rail .mo{font-family:var(--font-mono);font-size:10px;color:var(--muted);text-transform:uppercase}
 .day.we .rail .wd{color:var(--k-act)}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0}
-.day-head{display:flex;gap:6px 12px;flex-wrap:wrap;align-items:baseline;padding:10px 14px;border-bottom:1px solid var(--line)}
-.day-head h3{font-size:17px}
-.day-head .dnum{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0;width:100%;overflow:hidden}
+.day-head{display:flex;gap:6px 12px;flex-wrap:wrap;align-items:baseline;padding:10px 14px;border-bottom:1px solid var(--line);width:100%;min-width:0}
+.day-head h3{font-size:16px;min-width:0;overflow-wrap:anywhere}
+.day-head .dnum{font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-left:auto}
 .day-head .quiet{color:var(--muted);font-size:13px}
-.ev{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:10px;align-items:start;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:9px 14px}
+.ev{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:8px;align-items:start;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:9px 12px}
 .day-head + .ev{border-top:0}
 .ev:hover{background:var(--surface-2)}
-.ev .t{font-family:var(--font-mono);font-size:12px;color:var(--muted);padding-top:2px}
-.ev .what{min-width:0}
+.ev .t{font-family:var(--font-mono);font-size:11px;color:var(--muted);padding-top:2px}
+.ev .what{min-width:0;width:100%}
 .ev .ttl{font-weight:600;overflow-wrap:anywhere}
-.ev .sub{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
-.ev .side{display:grid;gap:3px;justify-items:end;font-size:12px;color:var(--muted)}
-.chip{display:inline-block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;border-radius:4px;padding:1px 6px;margin-right:6px;vertical-align:1px}
+.ev .sub{color:var(--muted);font-size:12.5px;overflow-wrap:anywhere}
+.ev .side{display:grid;gap:3px;justify-items:end;font-size:11.5px;color:var(--muted);flex:none}
+.chip{display:inline-block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;border-radius:4px;padding:1px 5px;margin-right:5px;vertical-align:1px}
 .c-activities{background:var(--k-act-bg);color:var(--k-act)}
 .c-transport{background:var(--k-trans-bg);color:var(--k-trans)}
 .c-stays{background:var(--k-stay-bg);color:var(--k-stay)}
 .c-destinations{background:var(--k-dest-bg);color:var(--k-dest)}
-.pill{font-size:11px;border-radius:99px;padding:1px 8px;border:1px solid var(--line);white-space:nowrap}
+.pill{font-size:10.5px;border-radius:99px;padding:1px 7px;border:1px solid var(--line);white-space:nowrap}
 .pill.yes{color:var(--ok);border-color:currentColor}
 .pill.no{color:var(--warn);border-color:currentColor}
-.night{display:flex;gap:8px;align-items:center;padding:8px 14px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.night{display:flex;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);flex-wrap:wrap}
 .night.gap{color:var(--warn);background:var(--warn-bg);border-radius:0 0 9px 9px}
 .night button{margin-left:auto}
 .free{padding:10px 14px;color:var(--muted);font-size:13px}
 
-/* lists */
-.list{display:grid;gap:8px}
+.list{display:grid;gap:8px;width:100%;min-width:0}
 .row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;text-align:left;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 14px}
 .row:hover{background:var(--surface-2)}
 .row .ttl{font-weight:600;overflow-wrap:anywhere}
 .row .sub{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
-.row .side{display:grid;gap:4px;justify-items:end;font-size:13px}
-.list-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.row .side{display:grid;gap:4px;justify-items:end;font-size:13px;flex:none}
+.list-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;width:100%}
 .list-head h2{font-size:22px}
 
-/* modal */
 .overlay{position:fixed;inset:0;z-index:20;background:rgba(10,20,15,.55);display:grid;place-items:center;padding:16px;overflow-y:auto}
 .modal{background:var(--surface);border:1px solid var(--line);border-radius:12px;width:100%;max-width:520px;padding:20px;display:grid;gap:14px;max-height:100%;overflow-y:auto}
 .modal h2{font-size:22px;display:flex;gap:8px;align-items:center}
@@ -152,14 +147,20 @@ main{padding-top:20px;display:grid;gap:20px}
 .foot .r{display:flex;gap:8px;margin-left:auto}
 .data textarea{width:100%;min-height:120px;font-family:var(--font-mono);font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px;color:var(--fg)}
 .hint{color:var(--muted);font-size:13px;margin:0}
-@media (max-width:560px){
-  .day{grid-template-columns:48px minmax(0,1fr);gap:8px}
-  .rail .dn{font-size:26px}
+
+@media (max-width:640px){
+  .trip-meta{gap:8px 12px}
+  .trip-meta label{font-size:10px}
+  .trip-meta input{font-size:13px;padding:5px 6px}
+  .day{grid-template-columns:44px minmax(0,1fr);gap:6px}
+  .rail .dn{font-size:22px}
   .form{grid-template-columns:1fr}
-  .ev{grid-template-columns:40px minmax(0,1fr)}
-  .ev .side{grid-column:2;justify-items:start;display:flex;gap:8px}
-  .row{grid-template-columns:auto minmax(0,1fr)}
+  .ev{grid-template-columns:36px minmax(0,1fr);gap:6px;padding:8px 10px}
+  .ev .side{grid-column:2;justify-items:start;display:flex;gap:8px;align-items:center;margin-top:2px}
+  .row{grid-template-columns:auto minmax(0,1fr);padding:10px 12px}
   .row .side{grid-column:2;justify-items:start;display:flex;gap:8px;align-items:center}
+  .bar{padding:6px 0}
+  .tab{padding:6px 10px;font-size:13px}
 }
 @media (prefers-reduced-motion:no-preference){.btn,.tab,.ev,.row{transition:background .12s}}
 </style>
@@ -225,39 +226,38 @@ var SCHEMA={
 var ORDER=['destinations','activities','transport','stays'];
 var DAY=864e5;
 
-/* ---------- state ---------- */
 var state=null, tab='timeline', storageOK=true;
 function uid(){return Math.random().toString(36).slice(2,9)}
 function seed(){
   var d1='d'+uid(),d2='d'+uid(),d3='d'+uid(),d4='d'+uid();
   return {example:true,
-    trip:{name:'Costa Rica, February 2027',start:'2027-02-06',end:'2027-02-17',cur:'€'},
+    trip:{name:'Costa Rica, February 2027',start:'2027-02-06',end:'2027-02-27',cur:'€'},
     destinations:[
       {id:d1,name:'San José',region:'San José',arrive:'2027-02-06',depart:'2027-02-07',notes:'Arrival night near the airport.'},
-      {id:d2,name:'La Fortuna (Arenal)',region:'Alajuela',arrive:'2027-02-07',depart:'2027-02-10',notes:'Volcano views, hot springs, waterfall.'},
-      {id:d3,name:'Monteverde',region:'Puntarenas',arrive:'2027-02-10',depart:'2027-02-13',notes:'Cloud forest. Bring a light rain jacket.'},
-      {id:d4,name:'Manuel Antonio',region:'Puntarenas',arrive:'2027-02-13',depart:'2027-02-17',notes:'National park and beaches.'}],
+      {id:d2,name:'La Fortuna (Arenal)',region:'Alajuela',arrive:'2027-02-07',depart:'2027-02-14',notes:'Volcano views, hot springs, waterfall.'},
+      {id:d3,name:'Monteverde',region:'Puntarenas',arrive:'2027-02-14',depart:'2027-02-20',notes:'Cloud forest. Bring a light rain jacket.'},
+      {id:d4,name:'Manuel Antonio',region:'Puntarenas',arrive:'2027-02-20',depart:'2027-02-27',notes:'National park and beaches.'}],
     activities:[
       {id:'a'+uid(),name:'Hot springs evening',dest:d2,date:'2027-02-07',time:'18:00',duration:'3 h',cost:45,booked:false,notes:''},
       {id:'a'+uid(),name:'La Fortuna waterfall and hanging bridges',dest:d2,date:'2027-02-08',time:'09:00',duration:'5 h',cost:70,booked:true,notes:'Meet at the lodge lobby.'},
       {id:'a'+uid(),name:'Kayaking on Lake Arenal',dest:d2,date:'2027-02-09',time:'07:30',duration:'4 h',cost:60,booked:false,notes:''},
-      {id:'a'+uid(),name:'Guided night walk',dest:d3,date:'2027-02-11',time:'18:00',duration:'2 h',cost:35,booked:true,notes:''},
-      {id:'a'+uid(),name:'Canopy zip-line',dest:d3,date:'2027-02-12',time:'09:00',duration:'3 h',cost:75,booked:false,notes:''},
-      {id:'a'+uid(),name:'Manuel Antonio National Park, guided walk',dest:d4,date:'2027-02-14',time:'07:30',duration:'3 h',cost:55,booked:false,notes:'The park is closed on Mondays, so go on Sunday.'},
-      {id:'a'+uid(),name:'Catamaran sunset sail',dest:d4,date:'2027-02-15',time:'15:30',duration:'3 h',cost:85,booked:false,notes:''}],
+      {id:'a'+uid(),name:'Guided night walk',dest:d3,date:'2027-02-15',time:'18:00',duration:'2 h',cost:35,booked:true,notes:''},
+      {id:'a'+uid(),name:'Canopy zip-line',dest:d3,date:'2027-02-16',time:'09:00',duration:'3 h',cost:75,booked:false,notes:''},
+      {id:'a'+uid(),name:'Manuel Antonio National Park, guided walk',dest:d4,date:'2027-02-21',time:'07:30',duration:'3 h',cost:55,booked:false,notes:'The park is closed on Mondays.'},
+      {id:'a'+uid(),name:'Catamaran sunset sail',dest:d4,date:'2027-02-22',time:'15:30',duration:'3 h',cost:85,booked:false,notes:''}],
     transport:[
-      {id:'t'+uid(),mode:'Flight',date:'2027-02-06',from:'Amsterdam (AMS)',to:'San José Airport (SJO)',depart:'10:30',arrive:'15:00',cost:780,booked:true,notes:'Return fare, covers the flight home too.'},
+      {id:'t'+uid(),mode:'Flight',date:'2027-02-06',from:'Amsterdam (AMS)',to:'San José Airport (SJO)',depart:'10:30',arrive:'15:00',cost:780,booked:true,notes:'Return fare.'},
       {id:'t'+uid(),mode:'Taxi',date:'2027-02-06',from:'San José Airport (SJO)',to:'San José',depart:'15:45',arrive:'16:20',cost:30,booked:false,notes:''},
       {id:'t'+uid(),mode:'Shared shuttle',date:'2027-02-07',from:'San José',to:'La Fortuna (Arenal)',depart:'08:00',arrive:'11:30',cost:60,booked:true,notes:''},
-      {id:'t'+uid(),mode:'Shared shuttle',date:'2027-02-10',from:'La Fortuna (Arenal)',to:'Monteverde',depart:'08:00',arrive:'12:30',cost:55,booked:false,notes:'The boat and jeep option is slower but scenic.'},
-      {id:'t'+uid(),mode:'Shared shuttle',date:'2027-02-13',from:'Monteverde',to:'Manuel Antonio',depart:'07:30',arrive:'12:30',cost:65,booked:false,notes:''},
-      {id:'t'+uid(),mode:'Shared shuttle',date:'2027-02-17',from:'Manuel Antonio',to:'San José Airport (SJO)',depart:'07:30',arrive:'11:30',cost:60,booked:false,notes:''},
-      {id:'t'+uid(),mode:'Flight',date:'2027-02-17',from:'San José Airport (SJO)',to:'Amsterdam (AMS)',depart:'15:30',arrive:'',cost:0,booked:true,notes:'Included in the outbound fare.'}],
+      {id:'t'+uid(),mode:'Shared shuttle',date:'2027-02-14',from:'La Fortuna (Arenal)',to:'Monteverde',depart:'08:00',arrive:'12:30',cost:55,booked:false,notes:''},
+      {id:'t'+uid(),mode:'Shared shuttle',date:'2027-02-20',from:'Monteverde',to:'Manuel Antonio',depart:'07:30',arrive:'12:30',cost:65,booked:false,notes:''},
+      {id:'t'+uid(),mode:'Shared shuttle',date:'2027-02-27',from:'Manuel Antonio',to:'San José Airport (SJO)',depart:'07:30',arrive:'11:30',cost:60,booked:false,notes:''},
+      {id:'t'+uid(),mode:'Flight',date:'2027-02-27',from:'San José Airport (SJO)',to:'Amsterdam (AMS)',depart:'15:30',arrive:'',cost:0,booked:true,notes:'Included.'}],
     stays:[
       {id:'s'+uid(),name:'Boutique hotel, San José',dest:d1,ref:'',checkin:'2027-02-06',checkout:'2027-02-07',cost:95,booked:true,notes:''},
-      {id:'s'+uid(),name:'Eco lodge with Arenal view',dest:d2,ref:'',checkin:'2027-02-07',checkout:'2027-02-10',cost:330,booked:true,notes:''},
-      {id:'s'+uid(),name:'Cloud forest lodge',dest:d3,ref:'',checkin:'2027-02-10',checkout:'2027-02-13',cost:270,booked:false,notes:''},
-      {id:'s'+uid(),name:'Beach hotel near the park',dest:d4,ref:'',checkin:'2027-02-13',checkout:'2027-02-17',cost:560,booked:false,notes:''}]
+      {id:'s'+uid(),name:'Eco lodge with Arenal view',dest:d2,ref:'',checkin:'2027-02-07',checkout:'2027-02-14',cost:770,booked:true,notes:''},
+      {id:'s'+uid(),name:'Cloud forest lodge',dest:d3,ref:'',checkin:'2027-02-14',checkout:'2027-02-20',cost:540,booked:false,notes:''},
+      {id:'s'+uid(),name:'Beach hotel near the park',dest:d4,ref:'',checkin:'2027-02-20',checkout:'2027-02-27',cost:980,booked:false,notes:''}]
   };
 }
 function blank(){return {example:false,trip:{name:'My Costa Rica trip',start:'',end:'',cur:'$'},destinations:[],activities:[],transport:[],stays:[]}}
@@ -277,7 +277,6 @@ function save(){
   el.className='savestate'+(storageOK?'':' bad');
 }
 
-/* ---------- helpers ---------- */
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function pd(s){var p=s.split('-').map(Number);return Date.UTC(p[0],p[1]-1,p[2])}
 function fd(ms){return new Date(ms).toISOString().slice(0,10)}
@@ -336,7 +335,6 @@ function totals(){
   return {cost:cost,booked:booked,items:items,bookedCost:bookedCost};
 }
 
-/* ---------- render ---------- */
 var main=document.getElementById('main');
 function renderHeader(){
   var t=state.trip,r=range(),tot=totals();
@@ -361,7 +359,7 @@ function renderTabs(){
 }
 function banner(){
   if(!state.example)return '';
-  return '<div class="banner"><p>This is an example trip so you can see how the planner works. Change anything, or clear it to start your own.</p><button class="btn" type="button" data-act="clear-example">Clear example and start fresh</button></div>';
+  return '<div class="banner"><p>This is an example trip so you can see how the planner works. Change anything, or clear it to start your own.</p><button class="btn" type="button" data-act="clear-example">Clear example</button></div>';
 }
 function addButtons(){
   return '<div class="actions">'+ORDER.map(function(k){return '<button class="btn" type="button" data-add="'+k+'"><span class="dot d-'+k+'"></span> '+SCHEMA[k].one+'</button>'}).join('')+'</div>';
@@ -369,7 +367,7 @@ function addButtons(){
 function renderGantt(r){
   var ds=state.destinations.filter(function(d){return isDate(d.arrive)}).sort(function(a,b){return a.arrive<b.arrive?-1:1});
   if(!ds.length)return '';
-  var h='<div class="gantt" style="grid-template-columns:repeat('+r.n+',minmax(26px,1fr))">';
+  var h='<div class="gantt" style="grid-template-columns:repeat('+r.n+',minmax(28px,1fr))">';
   for(var i=0;i<r.n;i++){
     var ms=r.start+i*DAY,dt=new Date(ms),dow=dt.getUTCDay();
     h+='<div class="g-head'+((dow===0||dow===6)?' we':'')+'" style="grid-row:1;grid-column:'+(i+1)+'">'+dt.getUTCDate()+'<small>'+(dt.getUTCDate()===1||i===0?dt.toLocaleDateString('en-GB',{month:'short',timeZone:'UTC'}):'')+'</small></div>';
@@ -466,7 +464,6 @@ function render(){
   if(tab==='timeline')renderTimeline();else renderList(tab);
 }
 
-/* ---------- modal ---------- */
 var root=document.getElementById('modalRoot'),lastFocus=null;
 function closeModal(){root.innerHTML='';if(lastFocus&&lastFocus.focus)try{lastFocus.focus()}catch(e){}}
 function fieldHTML(f,v){
@@ -524,7 +521,6 @@ function openForm(kind,id,preset){
   };
 }
 
-/* ---------- data modal ---------- */
 function openData(){
   lastFocus=document.activeElement;
   var json=JSON.stringify(state,null,1);
@@ -559,7 +555,6 @@ function openData(){
   };
 }
 
-/* ---------- wiring ---------- */
 function commit(){save();render()}
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&root.firstChild)closeModal()});
 document.getElementById('dataBtn').onclick=openData;
