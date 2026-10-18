@@ -394,11 +394,11 @@ function addButtons(){
 function renderGantt(r){
   var ds=state.destinations.filter(function(d){return isDate(d.arrive)}).sort(function(a,b){return a.arrive<b.arrive?-1:1});
   if(!ds.length)return '';
-  var gn=r.n+3;
+  var gn=r.n;
   var h='<div class="gantt" id="gantt" style="grid-template-columns:repeat('+gn+',minmax(26px,1fr))">';
   for(var i=0;i<gn;i++){
     var ms=r.start+i*DAY,dt=new Date(ms),dow=dt.getUTCDay();
-    h+='<div class="g-head'+((dow===0||dow===6)?' we':'')+(i>=r.n?' spare':'')+'" style="grid-row:1;grid-column:'+(i+1)+'">'+dt.getUTCDate()+'<small>'+(dt.getUTCDate()===1||i===0?dt.toLocaleDateString('en-GB',{month:'short',timeZone:'UTC'}):'')+'</small></div>';
+    h+='<div class="g-head'+((dow===0||dow===6)?' we':'')+'" style="grid-row:1;grid-column:'+(i+1)+'">'+dt.getUTCDate()+'<small>'+(dt.getUTCDate()===1||i===0?dt.toLocaleDateString('en-GB',{month:'short',timeZone:'UTC'}):'')+'</small></div>';
   }
   ds.forEach(function(d,idx){
     var a=Math.round((pd(d.arrive)-r.start)/DAY)+1;
@@ -663,7 +663,7 @@ main.addEventListener('pointerdown',function(e){
   var oa=Math.round((pd(d.arrive)-r.start)/DAY),had=isDate(d.depart);
   var od=had?Math.round((pd(d.depart)-r.start)/DAY):oa;
   drag={bar:bar,id:d.id,name:d.name,mode:h==='l'?'left':h==='r'?'right':'move',x:e.clientX,cw:head.getBoundingClientRect().width||26,
-    oa:oa,od:od,na:oa,nd:od,had:had,gn:r.n+3,start:r.start,moved:false,pid:e.pointerId};
+    oa:oa,od:od,na:oa,nd:od,had:had,gn:r.n,start:r.start,moved:false,pid:e.pointerId};
   try{bar.setPointerCapture(e.pointerId)}catch(x){}
   e.preventDefault();
 });
